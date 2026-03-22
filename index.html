@@ -870,3 +870,489 @@ document.getElementById('sb-generate').className='sidebar-item'+(tab==='generate
 document.getElementById('sb-history').className='sidebar-item'+(tab==='history'?' active':'');
 if(tab==='history')renderHistory();
 }
+
+function openAuthModal(){document.getElementById('authOverlay').classList.add('open');}
+function closeAuthModal(){document.getElementById('authOverlay').classList.remove('open');}
+
+function openPremiumModal(){
+if(!currentUser){openAuthModal();return;}
+document.getElementById('premiumOverlay').classList.add('open');
+}
+function closePremiumModal(){document.getElementById('premiumOverlay').classList.remove('open');}
+
+function selectStyle(btn){
+document.querySelectorAll('.gen-option').forEach(function(b){b.classList.remove('selected');});
+btn.classList.add('selected');
+selectedStyle=btn.dataset.style;
+}
+
+// ============ PROGRESS HELPERS ============
+function setStep(n,state,detail){
+var step=document.getElementById('ps'+n);
+var icon=document.getElementById('ps'+n+'-icon');
+var det=document.getElementById('ps'+n+'-detail');
+if(!step)return;
+step.className='progress-step '+state;
+icon.className='step-status '+state;
+if(state==='spinning'){icon.innerHTML='<span class="mini-spin">⟳</span>';}
+else if(state==='done'){icon.textContent='✓';}
+else if(state==='error'){icon.textContent='✗';}
+else{icon.textContent='⏳';}
+if(det&&detail)det.textContent=detail;
+}
+
+function showProgress(){
+document.getElementById('progressCard').classList.add('show');
+document.getElementById('resultCard').classList.remove('show');
+for(var i=1;i<=5;i++)setStep(i,'waiting','Waiting...');
+}
+
+// ============ MAIN GENERATE ============
+async function generateVideo(){
+// Force sign in if not logged in
+if(!currentUser){
+openAuthModal();
+return;
+}
+
+// Check video limit
+if(!isPremium && videosGenerated >= 1){
+showGenError('You have used your free video. Upgrade to Pro to generate more!');
+openPremiumModal();
+return;
+}
+
+var prompt=document.getElementById('promptInput').value.trim();
+if(!prompt){
+showGenError('Please enter a video description first!');
+return;
+}
+
+hideGenError();
+isGenerating=true;
+updateGenerateBtn();
+showProgress();
+
+var maxSecs=isPremium?60:30;
+
+try{
+// STEP 1: Script
+setStep(1,'spinning','Writing your script with Mistral AI...');
+var script=await generateScript(prompt,selectedStyle,maxSecs);
+currentScenes=script.scenes;
+setStep(1,'done','Script ready — '+script.scenes.length+' scenes');
+
+// STEP 2: Footage
+setStep(2,'spinning','Searching Pexels for stock videos...');
+var videoUrls=[];
+for(var i=0;i<script.scenes.length;i++){
+setStep(2,'spinning','Loading clip '+(i+1)+'/'+script.scenes.length+': "'+script.scenes[i].keyword+'"');
+var url=await fetchPexelsVideo(script.scenes[i].keyword);
+videoUrls.push(url);
+}
+var found=videoUrls.filter(function(u){return !!u;}).length;
+setStep(2,'done',found+' clips found');
+
+// STEP 3: Music
+setStep(3,'spinning','Finding background music on Pixabay...');
+var musicUrl=await fetchPixabayMusic();
+setStep(3,musicUrl?'done':'done',musicUrl?'Music loaded':'No music found (continuing...)');
+
+// STEP 4: Voiceover
+setStep(4,'spinning','Setting up voiceover engine...');
+if(!window.speechSynthesis){
+setStep(4,'error','Browser TTS not supported');
+} else {
+setStep(4,'done','Voiceover ready');
+}
+
+// STEP 5: Load clips as blobs
+setStep(5,'spinning','Fetching and loading all video clips...');
+sceneVideoUrls.forEach(function(u){if(u)URL.revokeObjectURL(u);});
+sceneVideoUrls=[];
+sceneNarrations=[];
+sceneDurations=[];
+currentSceneIndex=0;
+isPlaying=false;
+
+for(var j=0;j<script.scenes.length;j++){
+setStep(5,'spinning','Loading clip '+(j+1)+'/'+script.scenes.length+'...');
+var blobUrl=await fetchVideoAsBlob(videoUrls[j]);
+sceneVideoUrls.push(blobUrl);
+sceneNarrations.push(script.scenes[j].narration||'');
+sceneDurations.push((script.scenes[j].duration||6)*1000);
+}
+setStep(5,'done','All clips loaded — press Play!');
+
+// Save to DB
+if(firebaseReady&&currentUser){
+if(!isPremium){
+videosGenerated++;
+firebase.database().ref('chouvid_users/'+currentUser.uid+'/videosGenerated').set(videosGenerated);
+}
+await saveToHistory(script.title||prompt,prompt,script.scenes.length,maxSecs);
+}
+
+// Show result
+showResult(script,videoUrls);
+updateUsageUI();
+updateGenerateBtn();
+
+// Setup video player — first frame visible, waiting for play
+var vid=document.getElementById('sceneVideo');
+if(sceneVideoUrls[0]){
+vid.src=sceneVideoUrls[0];
+vid.load();
+}
+var overlay=document.getElementById('playerOverlay');
+overlay.style.display='flex';
+overlay.innerHTML='<div style="width:72px;height:72px;border-radius:50%;background:rgba(139,92,246,0.95);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 8px 32px rgba(139,92,246,0.5)">▶️</div>';
+overlay.onclick=startPlayback;
+
+document.getElementById('captionOverlay').style.display='none';
+if(!isPremium)document.getElementById('watermarkEl').style.display='block';
+else document.getElementById('watermarkEl').style.display='none';
+
+}catch(err){
+console.error(err);
+showGenError('Generation failed: '+err.message+'. Please try again.');
+for(var k=1;k<=5;k++){var el=document.getElementById('ps'+k);if(el&&el.classList.contains('spinning'))setStep(k,'error','Failed');}
+}
+
+isGenerating=false;
+updateGenerateBtn();
+}
+
+// ============ MISTRAL SCRIPT ============
+async function generateScript(prompt,style,maxSecs){
+var numScenes=maxSecs<=30?3:5;
+var sysPrompt='You are a professional video script writer. Create a '+style+' video script. Return ONLY valid JSON, no markdown, no explanation. Format: {"title":"...","scenes":[{"id":1,"narration":"...","keyword":"...","duration":5},...]} where keyword is 2-3 words for stock video search, duration is seconds per scene. Total duration must not exceed '+maxSecs+' seconds. Return EXACTLY '+numScenes+' scenes.';
+var res=await fetch('https://api.mistral.ai/v1/chat/completions',{
+method:'POST',
+headers:{'Content-Type':'application/json','Authorization':'Bearer '+MISTRAL_KEY},
+body:JSON.stringify({model:'mistral-large-latest',max_tokens:1000,messages:[{role:'system',content:sysPrompt},{role:'user',content:'Create a video about: '+prompt}]})
+});
+if(!res.ok)throw new Error('Mistral API error: '+res.status);
+var data=await res.json();
+var raw=data.choices[0].message.content;
+var clean=raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+var parsed=JSON.parse(clean);
+while(parsed.scenes.length<3){
+var idx=parsed.scenes.length+1;
+parsed.scenes.push({id:idx,narration:'And that is why this matters to everyone.',keyword:'inspiration success',duration:5});
+}
+return parsed;
+}
+
+// ============ PEXELS VIDEO ============
+async function fetchPexelsVideo(keyword){
+try{
+var res=await fetch('https://api.pexels.com/videos/search?query='+encodeURIComponent(keyword)+'&per_page=5&size=medium',{
+headers:{'Authorization':PEXELS_KEY}
+});
+var data=await res.json();
+if(!data.videos||!data.videos.length)return null;
+var vid=data.videos[0];
+// Prefer HD, fall back to SD
+var file=vid.video_files.find(function(f){return f.quality==='hd';});
+if(!file)file=vid.video_files.find(function(f){return f.quality==='sd';});
+if(!file&&vid.video_files.length)file=vid.video_files[0];
+return file?file.link:null;
+}catch(e){return null;}
+}
+
+// ============ PIXABAY MUSIC ============
+async function fetchPixabayMusic(){
+try{
+var res=await fetch('https://pixabay.com/api/?key='+PIXABAY_KEY+'&q=background+music&media_type=music&per_page=5');
+var data=await res.json();
+if(data.hits&&data.hits.length){
+for(var i=0;i<data.hits.length;i++){
+if(data.hits[i].previewURL)return data.hits[i].previewURL;
+}
+}
+}catch(e){}
+return null;
+}
+
+// ============ FETCH VIDEO AS BLOB ============
+async function fetchVideoAsBlob(url){
+if(!url)return null;
+try{
+var resp=await fetch(url);
+if(!resp.ok)return null;
+var blob=await resp.blob();
+return URL.createObjectURL(blob);
+}catch(e){return null;}
+}
+
+// ============ SCENE PLAYER ============
+function startPlayback(){
+if(isPlaying)return;
+document.getElementById('playerOverlay').style.display='none';
+isPlaying=true;
+currentSceneIndex=0;
+playCurrentScene();
+}
+
+function playCurrentScene(){
+if(currentSceneIndex>=sceneVideoUrls.length){
+isPlaying=false;
+var overlay=document.getElementById('playerOverlay');
+overlay.style.display='flex';
+overlay.innerHTML='<div onclick="restartPlayback()" style="width:72px;height:72px;border-radius:50%;background:rgba(139,92,246,0.95);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 8px 32px rgba(139,92,246,0.5)">↺</div>';
+overlay.onclick=null;
+window.speechSynthesis&&window.speechSynthesis.cancel();
+return;
+}
+
+var vid=document.getElementById('sceneVideo');
+var caption=document.getElementById('captionOverlay');
+var url=sceneVideoUrls[currentSceneIndex];
+var narration=sceneNarrations[currentSceneIndex];
+var dur=sceneDurations[currentSceneIndex];
+
+// Load and play the clip
+if(url){
+vid.src=url;
+vid.currentTime=0;
+vid.play().catch(function(e){console.warn('Video play failed:',e);});
+} else {
+// No clip found — show black with caption
+vid.src='';
+}
+
+// Show caption
+if(caption){
+caption.textContent=narration;
+caption.style.display=narration?'block':'none';
+}
+
+// Voiceover synced AFTER clip starts playing
+if(window.speechSynthesis){
+window.speechSynthesis.cancel();
+setTimeout(function(){
+var u=new SpeechSynthesisUtterance(narration);
+u.rate=0.9;u.pitch=1;u.volume=1;
+window.speechSynthesis.speak(u);
+},300);
+}
+
+// Advance to next scene
+if(sceneTimeout)clearTimeout(sceneTimeout);
+sceneTimeout=setTimeout(function(){
+window.speechSynthesis&&window.speechSynthesis.cancel();
+currentSceneIndex++;
+playCurrentScene();
+},dur);
+}
+
+function restartPlayback(){
+var overlay=document.getElementById('playerOverlay');
+overlay.style.display='flex';
+overlay.innerHTML='<div style="width:72px;height:72px;border-radius:50%;background:rgba(139,92,246,0.95);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 8px 32px rgba(139,92,246,0.5)">▶️</div>';
+overlay.onclick=startPlayback;
+currentSceneIndex=0;
+isPlaying=false;
+}
+
+// ============ DOWNLOAD ============
+function downloadVideo(){
+if(!sceneVideoUrls.length){showToast('Generate a video first');return;}
+showToast('Recording video for download... please wait, keep this tab open.');
+
+var canvas=document.createElement('canvas');
+canvas.width=854;canvas.height=480;
+var ctx=canvas.getContext('2d');
+var stream=canvas.captureStream(24);
+var mimeType=MediaRecorder.isTypeSupported('video/webm;codecs=vp8')?'video/webm;codecs=vp8':'video/webm';
+var mr=new MediaRecorder(stream,{mimeType:mimeType});
+var chunks=[];
+mr.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+mr.onstop=function(){
+var blob=new Blob(chunks,{type:'video/webm'});
+var url=URL.createObjectURL(blob);
+var a=document.createElement('a');
+a.href=url;a.download='chouvid-'+Date.now()+'.webm';
+document.body.appendChild(a);a.click();document.body.removeChild(a);
+URL.revokeObjectURL(url);
+showToast('✅ Downloaded!');
+};
+mr.start(100);
+
+var idx=0;
+function recordScene(){
+if(idx>=sceneVideoUrls.length){mr.stop();return;}
+var v=document.createElement('video');
+v.crossOrigin='anonymous';
+v.src=sceneVideoUrls[idx];
+v.muted=true;
+v.oncanplay=function(){
+v.play();
+var dur=sceneDurations[idx];
+var start=Date.now();
+function draw(){
+ctx.fillStyle='#050810';ctx.fillRect(0,0,canvas.width,canvas.height);
+try{ctx.drawImage(v,0,0,canvas.width,canvas.height);}catch(e){}
+ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(0,0,canvas.width,canvas.height);
+// Caption
+var narr=sceneNarrations[idx];
+if(narr){
+ctx.font='bold 20px sans-serif';ctx.textAlign='left';
+var words=narr.split(' '),lines=[],line='';
+words.forEach(function(w){var t=line+(line?' ':'')+w;if(ctx.measureText(t).width>canvas.width-80&&line){lines.push(line);line=w;}else line=t;});
+if(line)lines.push(line);
+var lh=30,th=lines.length*lh+40,ty=canvas.height-th-16;
+ctx.fillStyle='rgba(0,0,0,0.72)';ctx.fillRect(16,ty,canvas.width-32,th);
+ctx.fillStyle='#fff';
+lines.forEach(function(l,i){ctx.fillText(l,36,ty+24+i*lh);});
+}
+if(!isPremium){ctx.fillStyle='rgba(139,92,246,0.85)';ctx.font='bold 13px sans-serif';ctx.textAlign='right';ctx.fillText('ChouVid',canvas.width-12,22);}
+if(Date.now()-start<dur)requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+setTimeout(function(){v.pause();idx++;recordScene();},dur);
+};
+v.onerror=function(){idx++;recordScene();};
+v.load();
+}
+recordScene();
+}
+
+// ============ SHOW RESULT ============
+function showResult(script,videoUrls){
+document.getElementById('resultCard').classList.add('show');
+var strip=document.getElementById('scenesStrip');
+strip.innerHTML='';
+currentScenes.forEach(function(s,i){
+var div=document.createElement('div');
+div.className='scene-thumb';
+if(videoUrls[i]){
+var v=document.createElement('video');
+v.src=videoUrls[i];v.muted=true;
+v.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:6px';
+div.appendChild(v);
+} else {
+div.textContent=s.keyword;
+}
+strip.appendChild(div);
+});
+var total=currentScenes.reduce(function(a,s){return a+(s.duration||5);},0);
+document.getElementById('metaScenes').textContent=currentScenes.length+' scenes';
+document.getElementById('metaDuration').textContent=total+'s';
+}
+
+function resetGenerator(){
+document.getElementById('promptInput').value='';
+document.getElementById('progressCard').classList.remove('show');
+document.getElementById('resultCard').classList.remove('show');
+document.getElementById('scenesStrip').innerHTML='';
+currentScenes=[];
+if(sceneTimeout)clearTimeout(sceneTimeout);
+window.speechSynthesis&&window.speechSynthesis.cancel();
+sceneVideoUrls.forEach(function(u){if(u)URL.revokeObjectURL(u);});
+sceneVideoUrls=[];isPlaying=false;currentSceneIndex=0;
+var vid=document.getElementById('sceneVideo');
+if(vid){vid.pause();vid.src='';}
+hideGenError();
+updateGenerateBtn();
+}
+
+// ============ HISTORY ============
+async function saveToHistory(title,prompt,scenes,maxSecs){
+if(!firebaseReady||!currentUser)return;
+try{
+var ref=firebase.database().ref('chouvid_history/'+currentUser.uid).push();
+await ref.set({title:title,prompt:prompt,scenes:scenes,maxSecs:maxSecs,createdAt:Date.now(),isPro:isPremium});
+}catch(e){console.warn('History save failed:',e.message);}
+}
+
+function renderHistory(){
+var container=document.getElementById('historyContent');
+if(!firebaseReady||!currentUser){
+container.innerHTML='<div class="empty-history"><div class="icon">📚</div><p>Sign in to see your video history</p></div>';
+return;
+}
+container.innerHTML='<div style="color:var(--muted);font-size:0.9rem">Loading...</div>';
+firebase.database().ref('chouvid_history/'+currentUser.uid).orderByChild('createdAt').limitToLast(20).once('value').then(function(snap){
+var items=[];
+snap.forEach(function(child){
+var val=child.val();
+val.key=child.key;
+items.unshift(val);
+});
+if(!items.length){
+container.innerHTML='<div class="empty-history"><div class="icon">🎬</div><p>No videos yet. Generate your first one!</p></div>';
+return;
+}
+var html='<div class="history-grid">';
+items.forEach(function(item){
+var d=new Date(item.createdAt);
+var dateStr=d.toLocaleDateString();
+html+='<div class="history-card"><div class="history-thumb">🎬<div class="history-thumb-overlay"><div class="history-duration">'+item.maxSecs+'s</div></div></div><div class="history-info"><div class="history-title">'+escHtml(item.title||item.prompt)+'</div><div class="history-date">'+dateStr+' · '+item.scenes+' scenes</div></div></div>';
+});
+html+='</div>';
+container.innerHTML=html;
+}).catch(function(e){
+container.innerHTML='<div class="empty-history"><div class="icon">⚠️</div><p>Could not load history. Check Firebase rules.</p></div>';
+});
+}
+
+// ============ FAQ ============
+var FAQS=[
+{q:'Is ChouVid completely free?',a:'Yes! Every account gets 1 free video generation with no credit card required. The free video is up to 30 seconds long and includes a small watermark.'},
+{q:'What exactly does ChouVid do?',a:'ChouVid turns your text prompt into a real downloadable video — automatically. It writes the script, finds matching stock footage, loads background music, generates a voiceover, and records everything into a .webm video file, all inside your browser.'},
+{q:'What format is the downloaded video?',a:'.webm — plays natively on Chrome, Firefox and Edge. If you need .mp4, use any free online converter like cloudconvert.com.'},
+{q:'Why is there a watermark on my video?',a:'The free plan includes a small "ChouVid" watermark in the corner. Upgrade to the Pro plan ($10/month) to remove it completely.'},
+{q:'How long can my video be?',a:'Free plan: up to 30 seconds. Pro plan: up to 60 seconds.'},
+{q:'Is the stock footage and music royalty-free?',a:'Yes. All video footage is sourced from Pexels and all background music from Pixabay — both are royalty-free platforms.'},
+{q:'Do I need to install anything?',a:'No. ChouVid runs 100% in your browser. No app, no extension, no download required.'},
+{q:'How do I upgrade to Pro?',a:'Click "Get Pro" or "Upgrade to Pro" anywhere on the site and complete the PayPal payment. Your account will be activated within 24 hours. Contact '+EMAIL+' if you experience any delay.'},
+{q:'Can I use ChouVid on mobile?',a:'Yes, but we recommend desktop Chrome or Edge for the best experience.'},
+{q:'Why did my video generation fail?',a:'The most common causes are: slow internet connection, browser blocking autoplay, or Pexels returning no results for your keyword. Try a simpler prompt on Chrome.'}
+];
+
+function renderFAQ(){
+var list=document.getElementById('faqList');
+if(!list)return;
+list.innerHTML=FAQS.map(function(f,i){
+return '<div class="faq-item" id="faq'+i+'"><button class="faq-q" onclick="toggleFAQ('+i+')">'+escHtml(f.q)+'<span class="faq-arrow">▼</span></button><div class="faq-a"><p>'+escHtml(f.a)+'</p></div></div>';
+}).join('');
+}
+
+function toggleFAQ(i){
+var item=document.getElementById('faq'+i);
+item.classList.toggle('open');
+}
+
+// ============ UTILS ============
+function escHtml(str){
+if(!str)return'';
+return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showGenError(msg){
+var a=document.getElementById('genError');
+if(a){document.getElementById('genErrorMsg').textContent=msg;a.classList.add('show');}
+}
+
+function hideGenError(){
+var a=document.getElementById('genError');
+if(a)a.classList.remove('show');
+}
+
+function showToast(msg){
+var el=document.getElementById('toast');
+el.textContent=msg;el.classList.add('show');
+setTimeout(function(){el.classList.remove('show');},3500);
+}
+
+// ============ INIT ============
+document.addEventListener('DOMContentLoaded',function(){
+renderFAQ();
+updateGenerateBtn();
+});
+</script>
+
+</body>
+</html>
