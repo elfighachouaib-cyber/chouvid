@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ChouVoice — AI Text to Speech</title>
+<meta name="description" content="ChouVoice - Turn any text into natural audio instantly. Free to try."/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎙️</text></svg>"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#06080f;--bg2:#0a0d18;--bg3:#0f1420;
+  --card:#0d1220;--card2:#121a2e;--card3:#1a2540;
+  --border:rgba(16,185,129,0.15);--border2:rgba(16,185,129,0.3);
+  --accent:#10b981;--accent2:#06b6d4;--accent3:#f59e0b;--accent4:#8b5cf6;
+  --danger:#ef4444;--text:#e2e8f0;--muted:#64748b;--white:#ffffff;
+  --font-display:'Syne','Segoe UI',system-ui,sans-serif;
+  --font-body:'DM Sans','Segoe UI',system-ui,sans-serif;
+  --radius:14px;--shadow:0 20px 60px rgba(0,0,0,0.6);
+  --glow:0 0 40px rgba(16,185,129,0.15);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:16px;line-height:1.6;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(16,185,129,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(16,185,129,0.03) 1px,transparent 1px);background-size:50px 50px;pointer-events:none;z-index:0}
+.orb{position:fixed;border-radius:50%;filter:blur(120px);pointer-events:none;z-index:0;animation:orbFloat 12s ease-in-out infinite}
+.orb1{width:600px;height:600px;background:rgba(16,185,129,0.06);top:-200px;right:-200px}
+.orb2{width:500px;height:500px;background:rgba(6,182,212,0.04);bottom:-100px;left:-200px;animation-delay:-5s}
+.orb3{width:300px;height:300px;background:rgba(139,92,246,0.04);top:40%;left:20%;animation-delay:-8s}
+@keyframes orbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-40px)}}
+nav{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;align-items:center;justify-content:space-between;padding:16px 48px;background:rgba(6,8,15,0.88);backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
+.nav-logo{display:flex;align-items:center;gap:10px;cursor:pointer;text-decoration:none}
+.nav-logo-text{font-family:var(--font-display);font-weight:800;font-size:1.25rem;color:var(--white)}
+.nav-logo-text span{color:var(--accent)}
+.nav-links{display:flex;align-items:center;gap:2px;position:absolute;left:50%;transform:translateX(-50%)}
+.nav-link{background:transparent;border:none;color:rgba(226,232,240,0.75);font-family:var(--font-body);font-weight:500;font-size:0.88rem;padding:8px 16px;border-radius:8px;cursor:pointer;transition:all 0.2s}
+.nav-link:hover{color:#fff;background:rgba(16,185,129,0.08)}
+.nav-right{display:flex;align-items:center;gap:10px}
+.btn-nav{background:transparent;border:1px solid var(--border2);color:var(--text);font-family:var(--font-body);font-weight:500;font-size:0.85rem;padding:8px 20px;border-radius:8px;cursor:pointer;transition:all 0.2s}
+.btn-nav:hover{border-color:var(--accent);color:var(--accent)}
+.btn-nav-primary{background:linear-gradient(135deg,var(--accent),#059669);border:none;color:#fff;font-family:var(--font-body);font-weight:600;font-size:0.85rem;padding:8px 20px;border-radius:8px;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 20px rgba(16,185,129,0.25)}
+.btn-nav-primary:hover{transform:translateY(-1px)}
+.user-pill{display:none;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:6px 14px;cursor:pointer;position:relative}
+.user-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:#fff}
+.user-name{font-size:0.82rem;font-weight:600}
+.user-badge{font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(16,185,129,0.15);color:var(--accent)}
+.user-badge.pro{background:rgba(245,158,11,0.2);color:var(--accent3)}
+.user-dropdown{position:absolute;top:calc(100% + 8px);right:0;background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:6px;min-width:160px;box-shadow:var(--shadow);display:none;z-index:2000}
+.user-dropdown.open{display:block}
+.user-dropdown-item{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;color:var(--text);font-family:var(--font-body);font-size:0.88rem;font-weight:500;padding:10px 14px;border-radius:8px;cursor:pointer;text-align:left;transition:all 0.15s}
+.user-dropdown-item:hover{background:var(--bg3);color:var(--accent)}
+.user-dropdown-item.danger{color:var(--danger)}
+.user-dropdown-item.danger:hover{background:rgba(239,68,68,0.08)}
+.user-dropdown-divider{height:1px;background:var(--border);margin:4px 0}
+.page{display:none}
+.page.active{display:block}
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:130px 20px 80px;position:relative;z-index:1}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:99px;padding:6px 18px;font-size:0.78rem;color:var(--accent);font-family:var(--font-display);margin-bottom:32px;animation:fadeUp 0.6s ease both;letter-spacing:0.05em}
+.hero-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s ease infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.7)}}
+.hero h1{font-family:var(--font-display);font-size:clamp(2.8rem,6vw,5rem);font-weight:800;line-height:1.08;margin-bottom:24px;animation:fadeUp 0.6s ease 0.1s both;letter-spacing:-0.02em}
+.grad{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:1.1rem;color:var(--muted);max-width:500px;margin:0 auto 48px;animation:fadeUp 0.6s ease 0.2s both;line-height:1.75}
+.hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;align-items:flex-start;animation:fadeUp 0.6s ease 0.3s both}
+.btn-xl{font-family:var(--font-display);font-weight:700;font-size:1rem;padding:15px 36px;border-radius:12px;cursor:pointer;border:none;transition:all 0.25s;display:inline-flex;align-items:center;gap:10px}
+.btn-xl-primary{background:linear-gradient(135deg,var(--accent),#059669);color:#fff;box-shadow:0 8px 32px rgba(16,185,129,0.35)}
+.btn-xl-primary:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(16,185,129,0.5)}
+.btn-xl-pro{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#1a0500;box-shadow:0 8px 28px rgba(245,158,11,0.3)}
+.btn-xl-pro:hover{transform:translateY(-3px)}
+.btn-xl-ghost{background:rgba(255,255,255,0.05);color:#e2e8f0;border:1px solid rgba(16,185,129,0.4);white-space:nowrap}
+.btn-xl-ghost:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-2px)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.section{padding:100px 20px;position:relative;z-index:1}
+.section-inner{max-width:1100px;margin:0 auto}
+.section-label{font-family:var(--font-display);font-size:0.72rem;color:var(--accent);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-label::before{content:'';width:24px;height:2px;background:var(--accent)}
+.section-title{font-family:var(--font-display);font-size:clamp(2rem,4vw,3rem);font-weight:800;margin-bottom:16px;letter-spacing:-0.02em}
+.section-sub{color:var(--muted);font-size:1rem;max-width:520px;line-height:1.75}
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;margin-top:60px}
+.about-stats{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.about-stat{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px;text-align:center;transition:all 0.3s}
+.about-stat:hover{border-color:var(--border2);transform:translateY(-3px)}
+.about-stat-num{font-family:var(--font-display);font-size:2.5rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.about-stat-label{font-size:0.85rem;color:var(--muted);margin-top:4px}
+.howto-steps{display:flex;flex-direction:column;gap:20px;margin-top:60px;max-width:760px}
+.howto-step{display:flex;gap:24px;align-items:flex-start;padding:28px;background:var(--card);border:1px solid var(--border);border-radius:16px;transition:all 0.3s}
+.howto-step:hover{border-color:var(--border2);box-shadow:var(--glow)}
+.howto-num{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#059669);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:800;font-size:1.1rem;color:#fff;flex-shrink:0}
+.howto-content h3{font-family:var(--font-display);font-weight:700;font-size:1.05rem;margin-bottom:6px}
+.howto-content p{color:var(--muted);font-size:0.88rem;line-height:1.65}
+.howto-tip{display:inline-block;margin-top:10px;font-size:0.78rem;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);color:var(--accent);padding:4px 12px;border-radius:99px}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:60px}
+.feature-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:28px;transition:all 0.3s}
+.feature-card:hover{border-color:var(--border2);box-shadow:var(--glow)}
+.feature-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:16px}
+.feature-title{font-family:var(--font-display);font-weight:700;font-size:1rem;margin-bottom:8px}
+.feature-desc{color:var(--muted);font-size:0.87rem;line-height:1.65}
+.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;margin-top:60px;max-width:700px}
+.price-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:36px;transition:all 0.3s}
+.price-card.featured{border-color:var(--accent);background:linear-gradient(135deg,rgba(16,185,129,0.07),rgba(6,182,212,0.04));box-shadow:var(--glow)}
+.price-badge{display:inline-block;background:linear-gradient(135deg,var(--accent),#059669);color:#fff;font-size:0.72rem;font-weight:700;padding:4px 12px;border-radius:99px;margin-bottom:20px;font-family:var(--font-display)}
+.price-name{font-family:var(--font-display);font-size:1.1rem;font-weight:700;margin-bottom:8px}
+.price-amount{font-family:var(--font-display);font-size:3rem;font-weight:800;color:var(--accent);line-height:1}
+.price-amount span{font-size:1rem;color:var(--muted);font-weight:400}
+.price-features{margin:24px 0;display:flex;flex-direction:column;gap:10px}
+.price-feature{display:flex;align-items:center;gap:10px;font-size:0.88rem}
+.check{color:var(--accent)}.cross{color:var(--muted)}
+.btn-price{width:100%;padding:13px;border-radius:10px;font-family:var(--font-display);font-weight:700;font-size:0.95rem;cursor:pointer;border:none;transition:all 0.25s}
+.btn-price-free{background:var(--bg3);color:var(--text);border:1px solid var(--border2)}
+.btn-price-free:hover{border-color:var(--accent);color:var(--accent)}
+.btn-price-pro{background:linear-gradient(135deg,var(--accent),#059669);color:#fff;box-shadow:0 6px 24px rgba(16,185,129,0.3)}
+.btn-price-pro:hover{transform:translateY(-2px)}
+.faq-list{margin-top:48px;display:flex;flex-direction:column;gap:12px;max-width:720px}
+.faq-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.faq-item.open{border-color:var(--border2)}
+.faq-q{width:100%;text-align:left;background:none;border:none;color:var(--text);font-family:var(--font-body);font-weight:600;font-size:0.95rem;padding:20px 24px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.faq-arrow{color:var(--accent);font-size:0.8rem;transition:transform 0.3s;flex-shrink:0}
+.faq-item.open .faq-arrow{transform:rotate(180deg)}
+.faq-a{max-height:0;overflow:hidden;transition:max-height 0.35s ease;padding:0 24px}
+.faq-item.open .faq-a{max-height:200px;padding-bottom:20px}
+.faq-a p{color:var(--muted);font-size:0.88rem;line-height:1.7}
+.dash-layout{display:grid;grid-template-columns:240px 1fr;min-height:100vh;padding-top:70px}
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);padding:28px 16px;position:sticky;top:70px;height:calc(100vh - 70px);overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.sidebar-label{font-family:var(--font-display);font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;padding:0 8px;margin:16px 0 6px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:all 0.2s;font-size:0.88rem;font-weight:500;color:var(--muted);border:none;background:none;width:100%;text-align:left}
+.sidebar-item:hover{background:var(--card);color:var(--text)}
+.sidebar-item.active{background:rgba(16,185,129,0.1);color:var(--accent);border:1px solid rgba(16,185,129,0.2)}
+.sidebar-item .icon{font-size:1rem;width:20px;text-align:center}
+.sidebar-usage{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:auto}
+.usage-label{font-size:0.78rem;color:var(--muted);margin-bottom:8px}
+.usage-bar{height:6px;background:var(--bg3);border-radius:99px;overflow:hidden;margin-bottom:8px}
+.usage-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width 0.5s ease}
+.usage-text{font-size:0.75rem;color:var(--muted)}
+.usage-text span{color:var(--accent);font-weight:600}
+.dash-main{padding:40px;position:relative;z-index:1}
+.dash-title{font-family:var(--font-display);font-size:1.8rem;font-weight:800;margin-bottom:6px}
+.dash-sub{color:var(--muted);font-size:0.9rem;margin-bottom:32px}
+.gen-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px;margin-bottom:24px}
+.gen-card-title{font-family:var(--font-display);font-weight:700;font-size:1rem;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.badge-tts{font-size:0.68rem;padding:3px 10px;border-radius:99px;background:rgba(16,185,129,0.12);color:var(--accent);font-family:var(--font-display)}
+.sub-label{font-size:0.8rem;color:var(--muted);margin-bottom:8px;font-family:var(--font-display);text-transform:uppercase;letter-spacing:0.05em}
+.lang-row{display:flex;gap:8px;margin-bottom:20px}
+.lang-btn{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 16px;font-size:0.82rem;color:var(--muted);cursor:pointer;transition:all 0.2s;font-family:var(--font-display);font-weight:600}
+.lang-btn.active{background:var(--accent);color:#000;border-color:var(--accent)}
+.voice-grid{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.voice-btn{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:0.82rem;color:var(--muted);cursor:pointer;transition:all 0.2s;font-family:var(--font-body);display:flex;align-items:center;gap:8px}
+.voice-btn:hover,.voice-btn.selected{border-color:var(--accent);color:var(--accent);background:rgba(16,185,129,0.06)}
+.voice-tag{font-size:0.65rem;padding:2px 7px;border-radius:99px;background:rgba(16,185,129,0.12);color:var(--accent)}
+.text-textarea{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px;font-family:var(--font-body);font-size:0.95rem;color:var(--text);outline:none;resize:vertical;min-height:160px;transition:border-color 0.2s;line-height:1.7}
+.text-textarea:focus{border-color:var(--border2)}
+.text-textarea::placeholder{color:var(--muted)}
+.char-row{display:flex;align-items:center;justify-content:space-between;margin-top:10px;margin-bottom:20px;flex-wrap:wrap;gap:8px}
+.char-count{font-size:0.8rem;color:var(--muted);display:flex;align-items:center;gap:10px}
+.char-count .num{font-weight:600;color:var(--text)}
+.char-count .num.over{color:var(--danger)}
+.char-bar{height:4px;background:var(--bg3);border-radius:99px;overflow:hidden;width:120px}
+.char-bar-fill{height:100%;border-radius:99px;transition:width 0.3s,background 0.3s;background:var(--accent)}
+.action-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.gen-limit-info{font-size:0.8rem;color:var(--muted)}
+.gen-limit-info span{color:var(--accent);font-weight:600}
+.btn-generate{background:linear-gradient(135deg,var(--accent),#059669);color:#fff;font-family:var(--font-display);font-weight:700;font-size:1rem;padding:13px 36px;border-radius:12px;border:none;cursor:pointer;transition:all 0.25s;display:flex;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(16,185,129,0.3)}
+.btn-generate:hover{transform:translateY(-2px);box-shadow:0 10px 36px rgba(16,185,129,0.45)}
+.btn-generate:disabled{opacity:0.45;cursor:not-allowed;transform:none}
+.no-audios-row{display:none;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap;padding:14px 18px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:12px}
+.no-audios-row p{font-size:0.85rem;color:var(--muted);flex:1}
+.audio-result{background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:28px;margin-bottom:24px;display:none;animation:fadeUp 0.4s ease both}
+.audio-result.show{display:block}
+.audio-player-wrap{background:var(--bg2);border-radius:14px;padding:24px;margin-bottom:20px}
+.waveform{display:flex;align-items:center;justify-content:center;gap:3px;height:56px;margin-bottom:16px}
+.waveform-bar{width:4px;border-radius:99px;background:var(--accent);opacity:0.4;transition:height 0.15s,opacity 0.15s}
+.waveform-bar.active{opacity:1}
+.player-controls{display:flex;align-items:center;gap:14px}
+.play-btn{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#059669);border:none;color:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;flex-shrink:0;box-shadow:0 4px 16px rgba(16,185,129,0.3)}
+.play-btn:hover{transform:scale(1.08)}
+.progress-track{flex:1;height:6px;background:var(--bg3);border-radius:99px;cursor:pointer;position:relative;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;width:0%;transition:width 0.1s linear}
+.time-label{font-size:0.78rem;color:var(--muted);font-family:var(--font-display);min-width:38px;text-align:right}
+.audio-actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn-action{display:flex;align-items:center;gap:8px;padding:11px 22px;border-radius:10px;font-family:var(--font-display);font-weight:600;font-size:0.88rem;cursor:pointer;transition:all 0.2s;border:none}
+.btn-dl{background:linear-gradient(135deg,var(--accent),#059669);color:#fff}
+.btn-dl:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(16,185,129,0.35)}
+.btn-new{background:var(--bg2);color:var(--text);border:1px solid var(--border2)}
+.btn-new:hover{border-color:var(--accent);color:var(--accent)}
+.audio-meta{display:flex;gap:16px;margin-top:16px;flex-wrap:wrap}
+.audio-meta-item{font-size:0.8rem;color:var(--muted)}
+.audio-meta-item span{color:var(--text);font-weight:500}
+.alert{display:none;padding:12px 18px;border-radius:12px;font-size:0.85rem;margin-bottom:16px;align-items:center;gap:10px}
+.alert.show{display:flex}
+.alert-error{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#fca5a5}
+.history-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:8px}
+.history-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;transition:all 0.25s}
+.history-card:hover{border-color:var(--border2);transform:translateY(-3px);box-shadow:var(--glow)}
+.history-icon{font-size:2rem;margin-bottom:12px}
+.history-title{font-size:0.88rem;font-weight:600;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.history-date{font-size:0.75rem;color:var(--muted)}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-state .icon{font-size:3rem;margin-bottom:16px}
+.myaudios-wrap{padding:110px 40px 60px;max-width:1000px;margin:0 auto;position:relative;z-index:1}
+.modal-overlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-bg{position:absolute;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(10px)}
+.modal{position:relative;background:var(--card2);border:1px solid var(--border2);border-radius:24px;padding:44px;width:100%;max-width:440px;margin:20px;box-shadow:var(--shadow);animation:modalIn 0.3s ease both;overflow-y:auto;max-height:90vh}
+@keyframes modalIn{from{opacity:0;transform:scale(0.94) translateY(24px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-close{position:absolute;top:18px;right:18px;background:var(--bg3);border:1px solid var(--border);color:var(--muted);width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+.modal-close:hover{color:var(--text);border-color:var(--accent)}
+.modal h2{font-family:var(--font-display);font-size:1.6rem;font-weight:800;margin-bottom:8px}
+.modal-sub{color:var(--muted);font-size:0.88rem;margin-bottom:30px;line-height:1.6}
+.btn-google{width:100%;background:#fff;border:none;color:#1a202c;font-family:var(--font-body);font-weight:700;font-size:0.92rem;padding:14px 20px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;transition:all 0.2s;margin-bottom:16px}
+.btn-google:hover{background:#f0f0f0;transform:translateY(-1px)}
+.modal-note{font-size:0.75rem;color:var(--muted);text-align:center;line-height:1.6}
+.premium-note{font-size:0.78rem;color:var(--muted);text-align:center;line-height:1.65;padding:14px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;margin-top:16px}
+.toast{position:fixed;bottom:28px;right:28px;background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:14px 22px;font-size:0.85rem;color:var(--text);box-shadow:var(--shadow);z-index:9999;opacity:0;transform:translateY(24px);transition:all 0.3s;max-width:320px}
+.toast.show{opacity:1;transform:translateY(0)}
+footer{position:relative;z-index:1;padding:40px 48px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
+footer .left{font-size:0.82rem;color:var(--muted)}
+footer .left span{color:var(--accent);font-weight:700}
+footer .links{display:flex;gap:20px}
+footer .links a{font-size:0.82rem;color:var(--muted);text-decoration:none;transition:color 0.2s}
+footer .links a:hover{color:var(--accent)}
+@media(max-width:900px){.dash-layout{grid-template-columns:1fr}.sidebar{display:none}.nav-links{display:none}.about-grid{grid-template-columns:1fr}.myaudios-wrap{padding:100px 20px 40px}nav{padding:14px 20px}.dash-main{padding:24px 16px}}
+@media(max-width:600px){footer{padding:28px 20px;flex-direction:column;text-align:center}}
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<nav>
+  <a class="nav-logo" onclick="showPage('home')">
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+      <defs>
+        <linearGradient id="vg1" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#10b981"/>
+          <stop offset="100%" stop-color="#06b6d4"/>
+        </linearGradient>
+      </defs>
+      <circle cx="18" cy="18" r="16" fill="url(#vg1)" opacity="0.12" stroke="url(#vg1)" stroke-width="1.5"/>
+      <rect x="13" y="5" width="10" height="16" rx="5" fill="url(#vg1)"/>
+      <path d="M9 17 Q9 26 18 26 Q27 26 27 17" stroke="url(#vg1)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <line x1="18" y1="26" x2="18" y2="31" stroke="url(#vg1)" stroke-width="2.2" stroke-linecap="round"/>
+      <line x1="13" y1="31" x2="23" y2="31" stroke="url(#vg1)" stroke-width="2.2" stroke-linecap="round"/>
+    </svg>
+    <span class="nav-logo-text">Chou<span>Voice</span></span>
+  </a>
+  <div class="nav-links">
+    <button class="nav-link" onclick="showPage('home');window.scrollTo(0,0)">Home</button>
+    <button class="nav-link" onclick="goToSection('about')">About Us</button>
+    <button class="nav-link" onclick="goToSection('howto')">How To Use</button>
+    <button class="nav-link" onclick="goToSection('faqsec')">FAQ</button>
+    <button class="nav-link" id="navMyAudios" style="display:none" onclick="goToMyAudios()">My Audios</button>
+  </div>
+  <div class="nav-right">
+    <div id="authBtns" style="display:flex;gap:8px">
+      <button class="btn-nav" onclick="openAuthModal()">Log In</button>
+      <button class="btn-nav-primary" onclick="openAuthModal()">Get Started</button>
+    </div>
+    <div class="user-pill" id="userPill" onclick="toggleDD(event)">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <span class="user-name" id="userNameNav">User</span>
+      <span class="user-badge" id="userBadgeNav">FREE</span>
+      <div class="user-dropdown" id="userDropdown">
+        <button class="user-dropdown-item" onclick="event.stopPropagation();goToMyAudios()">&#127897;&#65039; My Audios</button>
+        <div class="user-dropdown-divider"></div>
+        <button class="user-dropdown-item danger" onclick="event.stopPropagation();signOut()">&#8617; Sign Out</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- LANDING -->
+<div class="page active" id="page-home">
+  <section class="hero">
+    <div class="hero-eyebrow"><div class="hero-dot"></div>AI Text to Speech</div>
+    <h1>Your words.<br><span class="grad">Heard by everyone.</span></h1>
+    <p class="hero-sub">Type anything in English or French and get a clean downloadable audio file instantly. No mic needed.</p>
+    <div class="hero-btns">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+        <button class="btn-xl btn-xl-primary" onclick="handleStart()">&#127897;&#65039; Convert to Audio</button>
+        <span id="heroBadge" style="font-size:0.75rem;color:rgba(16,185,129,0.9);background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);padding:4px 14px;border-radius:99px;white-space:nowrap">&#10024; 1 Free Audio &#8212; No credit card</span>
+      </div>
+      <button class="btn-xl btn-xl-pro" onclick="openPremModal()">&#9889; Get Pro</button>
+      <button class="btn-xl btn-xl-ghost" onclick="goToSection('howto')">See How It Works</button>
+    </div>
+  </section>
+
+  <section class="section" id="about" style="border-top:1px solid var(--border)">
+    <div class="section-inner">
+      <div class="section-label">About Us</div>
+      <div class="about-grid">
+        <div>
+          <div class="section-title">Built for creators,<br>students &amp; professionals</div>
+          <p style="color:var(--muted);font-size:1rem;line-height:1.8;margin-bottom:18px">ChouVoice was built by Chouaib for anyone who needs to turn written content into audio &#8212; fast, clean, and free to try. No recording setup. No expensive software.</p>
+          <p style="color:var(--muted);font-size:1rem;line-height:1.8;margin-bottom:18px">Whether you're a student turning notes into audio to study on the go, a content creator adding voiceover to videos, or a professional creating audio content &#8212; ChouVoice does it in seconds.</p>
+          <p style="color:var(--muted);font-size:1rem;line-height:1.8">Type in English or French, pick a voice, and download your audio. That's it.</p>
+        </div>
+        <div class="about-stats">
+          <div class="about-stat"><div class="about-stat-num">100%</div><div class="about-stat-label">Browser-based</div></div>
+          <div class="about-stat"><div class="about-stat-num">EN+FR</div><div class="about-stat-label">Two languages</div></div>
+          <div class="about-stat"><div class="about-stat-num">Free</div><div class="about-stat-label">1 audio, no card</div></div>
+          <div class="about-stat"><div class="about-stat-num">&lt;5s</div><div class="about-stat-label">Generation time</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="howto" style="background:rgba(16,185,129,0.02);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+    <div class="section-inner">
+      <div class="section-label">How To Use</div>
+      <div class="section-title">From text to audio<br>in 4 simple steps</div>
+      <div class="howto-steps">
+        <div class="howto-step"><div class="howto-num">1</div><div class="howto-content"><h3>Sign in with Google</h3><p>Click "Get Started" and sign in. Free, no credit card. You get 1 free audio immediately.</p><span class="howto-tip">&#128161; Free plan &#8212; 250 characters max</span></div></div>
+        <div class="howto-step"><div class="howto-num">2</div><div class="howto-content"><h3>Type or paste your text</h3><p>Enter any text &#8212; a social media caption, study notes, a script, a product description. Up to your plan's limit.</p><span class="howto-tip">&#128161; Pro plan gets 1,000 characters per audio</span></div></div>
+        <div class="howto-step"><div class="howto-num">3</div><div class="howto-content"><h3>Pick your language and voice</h3><p>Choose English or French. Then select from multiple voice styles &#8212; calm, upbeat, deep, professional.</p><span class="howto-tip">&#128161; Different voices work better for different content</span></div></div>
+        <div class="howto-step"><div class="howto-num">4</div><div class="howto-content"><h3>Generate and download</h3><p>Hit Generate. Your audio plays in the browser and you can download it to use anywhere &#8212; YouTube, TikTok, podcasts, presentations.</p><span class="howto-tip">&#128161; Use Chrome for the best voice quality</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-inner">
+      <div class="section-label">Features</div>
+      <div class="section-title">Everything you need</div>
+      <div class="features">
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(16,185,129,0.1)">&#127897;&#65039;</div><div class="feature-title">Multiple Voices</div><div class="feature-desc">Choose from calm, upbeat, deep and professional voice styles. Find the one that fits your content.</div></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(6,182,212,0.1)">&#127757;</div><div class="feature-title">English &amp; French</div><div class="feature-desc">Full support for both English and French. Switch language with one click.</div></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(245,158,11,0.1)">&#11015;&#65039;</div><div class="feature-title">Instant Download</div><div class="feature-desc">Download your audio file directly to your device. No waiting, no email needed.</div></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(139,92,246,0.1)">&#128218;</div><div class="feature-title">Audio History</div><div class="feature-desc">All your generated audios saved and accessible from your dashboard anytime. Pro only.</div></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(16,185,129,0.1)">&#9889;</div><div class="feature-title">Instant Generation</div><div class="feature-desc">Audio is ready in under 5 seconds. No loading bars, no waiting around.</div></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(6,182,212,0.1)">&#128274;</div><div class="feature-title">Secure &amp; Private</div><div class="feature-desc">Your text is processed locally in your browser. Only your usage count is saved.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="pricing" style="background:rgba(16,185,129,0.02);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+    <div class="section-inner">
+      <div class="section-label">Pricing</div>
+      <div class="section-title">Simple pricing</div>
+      <p class="section-sub">Try free. Upgrade when you need more.</p>
+      <div class="pricing-grid">
+        <div class="price-card">
+          <div class="price-name">Free</div>
+          <div class="price-amount">$0<span>/forever</span></div>
+          <div class="price-features">
+            <div class="price-feature"><span class="check">&#10003;</span> 1 free audio generation</div>
+            <div class="price-feature"><span class="check">&#10003;</span> Up to 250 characters</div>
+            <div class="price-feature"><span class="check">&#10003;</span> English &amp; French</div>
+            <div class="price-feature"><span class="check">&#10003;</span> All voice styles</div>
+            <div class="price-feature"><span class="cross">&#10007;</span> <span style="color:var(--muted)">No audio history</span></div>
+          </div>
+          <button class="btn-price btn-price-free" onclick="handleStart()">Try Free</button>
+        </div>
+        <div class="price-card featured">
+          <div class="price-badge">&#9889; PRO</div>
+          <div class="price-name">Pro</div>
+          <div class="price-amount">$10<span>/month</span></div>
+          <div class="price-features">
+            <div class="price-feature"><span class="check">&#10003;</span> Unlimited audio generations</div>
+            <div class="price-feature"><span class="check">&#10003;</span> Up to 1,000 characters</div>
+            <div class="price-feature"><span class="check">&#10003;</span> English &amp; French</div>
+            <div class="price-feature"><span class="check">&#10003;</span> All voice styles</div>
+            <div class="price-feature"><span class="check">&#10003;</span> Full audio history</div>
+          </div>
+          <button class="btn-price btn-price-pro" onclick="openPremModal()">Upgrade to Pro</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="faqsec">
+    <div class="section-inner">
+      <div class="section-label">FAQ</div>
+      <div class="section-title">Frequently Asked Questions</div>
+      <p class="section-sub">Everything you need to know about ChouVoice.</p>
+      <div class="faq-list" id="faqList"></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="left">&copy; 2025 <span>ChouVoice</span> &mdash; Built by Chouaib</div>
+    <div class="links">
+      <a href="#" onclick="showPage('home');window.scrollTo(0,0)">Home</a>
+      <a href="#" onclick="goToSection('about')">About Us</a>
+      <a href="#" onclick="goToSection('howto')">How To Use</a>
+      <a href="#" onclick="goToSection('faqsec')">FAQ</a>
+    </div>
+  </footer>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page" id="page-dashboard">
+  <div class="dash-layout">
+    <aside class="sidebar">
+      <div class="sidebar-label">Main</div>
+      <button class="sidebar-item active" id="sb-gen" onclick="switchTab('generate')"><span class="icon">&#127897;&#65039;</span> Generate Audio</button>
+      <button class="sidebar-item" id="sb-hist" onclick="switchTab('history')"><span class="icon">&#128218;</span> My Audios</button>
+      <div class="sidebar-label">Account</div>
+      <button class="sidebar-item" onclick="openPremModal()"><span class="icon">&#9889;</span> Upgrade Pro</button>
+      <button class="sidebar-item" onclick="signOut()" style="color:var(--danger)"><span class="icon">&#8617;</span> Sign Out</button>
+      <div class="sidebar-usage">
+        <div class="usage-label">Free audios used</div>
+        <div class="usage-bar"><div class="usage-fill" id="usageFill" style="width:0%"></div></div>
+        <div class="usage-text"><span id="usageCount">0</span> / 1 used</div>
+      </div>
+    </aside>
+    <main class="dash-main">
+      <div id="tab-generate">
+        <div class="dash-title">&#127897;&#65039; Generate Audio</div>
+        <div class="dash-sub">Type your text, pick a voice, download your audio</div>
+        <div class="alert alert-error" id="genError"><span>&#9888;</span><span id="genErrorMsg"></span></div>
+        <div class="gen-card">
+          <div class="gen-card-title">Your text <span class="badge-tts">TTS</span></div>
+          <div class="sub-label">Language</div>
+          <div class="lang-row">
+            <button class="lang-btn active" id="langEN" onclick="setLang('en')">EN</button>
+            <button class="lang-btn" id="langFR" onclick="setLang('fr')">FR</button>
+          </div>
+          <div class="sub-label">Voice</div>
+          <div class="voice-grid" id="voiceGrid"></div>
+          <textarea class="text-textarea" id="textInput" placeholder="Type or paste your text here..."></textarea>
+          <div class="char-row">
+            <div class="char-count">
+              <span class="num" id="charCount">0</span> / <span id="charMax">250</span> characters
+              <div class="char-bar"><div class="char-bar-fill" id="charFill" style="width:0%"></div></div>
+            </div>
+          </div>
+          <div class="action-row">
+            <div class="gen-limit-info" id="limitInfo">Free plan: <span>250 chars</span> &middot; <span id="audiosLeft">1 audio left</span></div>
+            <button class="btn-generate" id="genBtn" onclick="handleGenerate()">
+              <span>&#127897;&#65039;</span><span id="genBtnText">Generate Audio</span>
+            </button>
+          </div>
+          <div class="no-audios-row" id="noAudiosRow">
+            <p>You have used your 1 free audio. Upgrade to Pro for unlimited generations.</p>
+            <button class="btn-xl btn-xl-pro" style="font-size:0.82rem;padding:8px 20px;white-space:nowrap" onclick="openPremModal()">&#9889; Get Pro</button>
+          </div>
+        </div>
+
+        <div class="audio-result" id="audioResult">
+          <div class="gen-card-title" style="margin-bottom:20px">&#9989; Your audio is ready!</div>
+          <div class="audio-player-wrap">
+            <div class="waveform" id="waveform"></div>
+            <div class="player-controls">
+              <button class="play-btn" id="playBtn" onclick="togglePlay()">&#9654;</button>
+              <div class="progress-track" onclick="seekClick()">
+                <div class="progress-fill" id="progFill"></div>
+              </div>
+              <div class="time-label" id="timeLabel">0:00</div>
+            </div>
+          </div>
+          <div class="audio-actions">
+            <button class="btn-action btn-dl" onclick="downloadAudio()">&#11015;&#65039; Download</button>
+            <button class="btn-action btn-new" onclick="resetGen()">&#10024; New Audio</button>
+          </div>
+          <div class="audio-meta">
+            <div class="audio-meta-item">&#128288; <span id="metaChars">0 chars</span></div>
+            <div class="audio-meta-item">&#127757; <span id="metaLang">English</span></div>
+            <div class="audio-meta-item">&#127897;&#65039; <span id="metaVoice">-</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-history" style="display:none">
+        <div class="dash-title">&#128218; My Audios</div>
+        <div class="dash-sub" style="margin-bottom:24px">Your previously generated audios</div>
+        <div id="histContent"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- MY AUDIOS PAGE -->
+<div class="page" id="page-myaudios">
+  <div class="myaudios-wrap">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:36px;flex-wrap:wrap;gap:12px">
+      <div><div class="dash-title">&#127897;&#65039; My Audios</div><div class="dash-sub">All your generated audios</div></div>
+      <button class="btn-generate" style="font-size:0.9rem;padding:11px 24px" onclick="handleStart()">&#127897;&#65039; Generate New Audio</button>
+    </div>
+    <div id="myAudiosContent"></div>
+  </div>
+  <footer style="position:relative;z-index:1;padding:32px 40px;border-top:1px solid var(--border)">
+    <div style="font-size:0.82rem;color:var(--muted)">&copy; 2025 <span style="color:var(--accent);font-weight:700">ChouVoice</span> &mdash; Built by Chouaib</div>
+  </footer>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal-bg" onclick="closeAuthModal()"></div>
+  <div class="modal">
+    <button class="modal-close" onclick="closeAuthModal()">&#215;</button>
+    <h2>Welcome to ChouVoice</h2>
+    <p class="modal-sub">Sign in to start converting text to audio. 1 free generation, no credit card needed.</p>
+    <button class="btn-google" onclick="signInGoogle()">
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Continue with Google
+    </button>
+    <p class="modal-note">By signing in you agree to our terms of service.</p>
+  </div>
+</div>
+
+<!-- PREMIUM MODAL -->
+<div class="modal-overlay" id="premModal">
+  <div class="modal-bg" onclick="closePremModal()"></div>
+  <div class="modal">
+    <button class="modal-close" onclick="closePremModal()">&#215;</button>
+    <h2>&#9889; Upgrade to Pro</h2>
+    <div style="font-size:2.8rem;font-weight:800;color:var(--accent);margin:20px 0;font-family:var(--font-display)">$10<span style="font-size:1rem;color:var(--muted);font-weight:400">/month</span></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin:20px 0">
+      <div style="display:flex;gap:10px;font-size:0.88rem"><span style="color:var(--accent)">&#10003;</span> Unlimited audio generations</div>
+      <div style="display:flex;gap:10px;font-size:0.88rem"><span style="color:var(--accent)">&#10003;</span> Up to 1,000 characters per audio</div>
+      <div style="display:flex;gap:10px;font-size:0.88rem"><span style="color:var(--accent)">&#10003;</span> Full audio history saved</div>
+      <div style="display:flex;gap:10px;font-size:0.88rem"><span style="color:var(--accent)">&#10003;</span> All voices, both languages</div>
+      <div style="display:flex;gap:10px;font-size:0.88rem"><span style="color:var(--accent)">&#10003;</span> Priority support</div>
+    </div>
+    <a href="https://www.paypal.com/ncp/payment/QRP75RC6A3XML" target="_blank" style="display:block;width:100%;text-align:center;background:linear-gradient(135deg,var(--accent),#059669);color:#fff;font-weight:700;font-family:var(--font-display);padding:14px 20px;border-radius:12px;text-decoration:none;margin-bottom:16px;font-size:1rem">Pay</a>
+    <div class="premium-note" id="premNote"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var EMAIL='elfighachouaib'+'@'+'gmail.com';
+var currentUser=null,isPremium=false,audiosGenerated=0,firebaseReady=false;
+var currentLang='en',selectedVoice=0,isPlaying=false,currentText='',animFrame=null,progInterval=null;
+
+var VOICES={
+  en:[
+    {name:'Female — Calm',     rate:0.88, pitch:1.1,  gender:'female', tag:'Natural'},
+    {name:'Male — Clear',      rate:0.93, pitch:0.88, gender:'male',   tag:'Professional'},
+    {name:'Female — Upbeat',   rate:1.05, pitch:1.2,  gender:'female', tag:'Energetic'},
+    {name:'Male — Deep',       rate:0.82, pitch:0.72, gender:'male',   tag:'Authoritative'},
+    {name:'Neutral — Balanced',rate:1.0,  pitch:1.0,  gender:'neutral',tag:'Balanced'}
+  ],
+  fr:[
+    {name:'Femme — Calme',     rate:0.88, pitch:1.1,  gender:'female', tag:'Naturel'},
+    {name:'Homme — Clair',     rate:0.93, pitch:0.88, gender:'male',   tag:'Professionnel'},
+    {name:'Femme — Vive',      rate:1.05, pitch:1.2,  gender:'female', tag:'Dynamique'},
+    {name:'Homme — Grave',     rate:0.82, pitch:0.72, gender:'male',   tag:'Autoritaire'},
+    {name:'Neutre — Stable',   rate:1.0,  pitch:1.0,  gender:'neutral',tag:'Equilibre'}
+  ]
+};
+
+// FIREBASE
+(function(){
+  var V='10.12.0',files=['firebase-app-compat.js','firebase-auth-compat.js','firebase-database-compat.js'];
+  var cdns=['https://www.gstatic.com/firebasejs/'+V+'/','https://cdn.jsdelivr.net/npm/firebase@'+V+'/compat/'];
+  function load(ci){
+    if(ci>=cdns.length)return;
+    var ok=0,fail=0;
+    files.forEach(function(f){
+      var s=document.createElement('script');s.src=cdns[ci]+f;s.async=false;
+      s.onload=function(){ok++;if(ok===files.length)window.initFB();};
+      s.onerror=function(){fail++;if(fail===1)load(ci+1);};
+      document.head.appendChild(s);
+    });
+  }
+  load(0);
+})();
+
+window.initFB=function(){
+  try{
+    firebase.initializeApp({apiKey:"AIzaSyA_8vbIw-1ajdNsIBCTRrKqyKFQubOehcw",authDomain:"chouai-code-helper.firebaseapp.com",databaseURL:"https://chouai-code-helper-default-rtdb.firebaseio.com",projectId:"chouai-code-helper",storageBucket:"chouai-code-helper.firebasestorage.app",messagingSenderId:"105880975660",appId:"1:105880975660:web:3031437d2f01fffbf0d489"});
+    firebaseReady=true;
+    firebase.auth().onAuthStateChanged(function(u){
+      currentUser=u;
+      if(u){
+        firebase.database().ref('chouvoice_users/'+u.uid).once('value').then(function(snap){
+          var d=snap.val()||{};
+          isPremium=!!d.isPremium;
+          audiosGenerated=d.audiosGenerated||0;
+          updateAuthUI();closeAuthModal();updateUsageUI();
+          showPage('dashboard');switchTab('generate');
+        });
+      } else {isPremium=false;audiosGenerated=0;updateAuthUI();}
+    });
+  }catch(e){console.warn('FB:',e);}
+};
+
+function updateAuthUI(){
+  var ab=document.getElementById('authBtns'),pill=document.getElementById('userPill');
+  var nm=document.getElementById('userNameNav'),badge=document.getElementById('userBadgeNav');
+  var navMA=document.getElementById('navMyAudios');
+  if(currentUser){
+    if(ab)ab.style.display='none';if(pill)pill.style.display='flex';
+    if(nm)nm.textContent=(currentUser.displayName||'User').split(' ')[0];
+    if(badge){badge.textContent=isPremium?'PRO':'FREE';badge.className='user-badge'+(isPremium?' pro':'');}
+    if(navMA)navMA.style.display='block';
+  } else {
+    if(ab)ab.style.display='flex';if(pill)pill.style.display='none';
+    if(navMA)navMA.style.display='none';
+  }
+}
+
+function updateUsageUI(){
+  var fill=document.getElementById('usageFill'),cnt=document.getElementById('usageCount');
+  var btn=document.getElementById('genBtn'),left=document.getElementById('audiosLeft');
+  var info=document.getElementById('limitInfo'),noRow=document.getElementById('noAudiosRow');
+  var hb=document.getElementById('heroBadge'),cm=document.getElementById('charMax');
+  var lim=isPremium?1000:250;
+  if(cm)cm.textContent=lim;
+  if(fill)fill.style.width=Math.min(audiosGenerated*100,100)+'%';
+  if(cnt)cnt.textContent=audiosGenerated;
+  if(isPremium){
+    if(info)info.innerHTML='Pro plan: <span>1,000 chars</span> &middot; <span>Unlimited &#9889;</span>';
+    if(btn){btn.disabled=false;btn.style.opacity='1';btn.style.cursor='pointer';}
+    if(noRow)noRow.style.display='none';
+    if(hb)hb.style.display='inline-flex';
+    if(left)left.textContent='Unlimited';
+  } else if(audiosGenerated>=1){
+    if(info)info.innerHTML='Free plan: <span>250 chars</span>';
+    if(btn){btn.disabled=true;btn.style.opacity='0.45';btn.style.cursor='not-allowed';}
+    if(noRow)noRow.style.display='flex';
+    if(hb)hb.style.display='none';
+    if(left)left.textContent='0 audios left';
+  } else {
+    if(info)info.innerHTML='Free plan: <span>250 chars</span> &middot; <span>1 audio left</span>';
+    if(btn){btn.disabled=false;btn.style.opacity='1';btn.style.cursor='pointer';}
+    if(noRow)noRow.style.display='none';
+    if(hb)hb.style.display='inline-flex';
+    if(left)left.textContent='1 audio left';
+  }
+  updateCharCount();
+}
+
+function signInGoogle(){
+  if(!firebaseReady)return;
+  var p=new firebase.auth.GoogleAuthProvider();
+  firebase.auth().signInWithPopup(p).then(function(r){
+    firebase.database().ref('chouvoice_users/'+r.user.uid).once('value').then(function(snap){
+      if(!snap.exists())firebase.database().ref('chouvoice_users/'+r.user.uid).set({email:r.user.email,name:r.user.displayName||'',isPremium:false,audiosGenerated:0,joinedAt:Date.now()});
+    });
+  }).catch(function(e){showToast('Sign in failed: '+e.message);});
+}
+function signOut(){if(firebaseReady)firebase.auth().signOut();closeDD();showPage('home');}
+
+// NAV
+function showPage(name){
+  if((name==='dashboard'||name==='myaudios')&&!currentUser){openAuthModal();return;}
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  var el=document.getElementById('page-'+name);if(el)el.classList.add('active');
+  window.scrollTo(0,0);
+  if(name==='home')renderFAQ();
+  if(name==='myaudios')renderMyAudios();
+}
+function handleStart(){if(!currentUser){openAuthModal();return;}showPage('dashboard');switchTab('generate');}
+function goToSection(id){showPage('home');setTimeout(function(){var el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth'});},80);}
+function goToMyAudios(){closeDD();if(!currentUser){openAuthModal();return;}showPage('myaudios');}
+function switchTab(t){
+  document.getElementById('tab-generate').style.display=t==='generate'?'block':'none';
+  document.getElementById('tab-history').style.display=t==='history'?'block':'none';
+  document.getElementById('sb-gen').className='sidebar-item'+(t==='generate'?' active':'');
+  document.getElementById('sb-hist').className='sidebar-item'+(t==='history'?' active':'');
+  if(t==='history')renderHistory();
+}
+function openAuthModal(){document.getElementById('authModal').classList.add('open');}
+function closeAuthModal(){document.getElementById('authModal').classList.remove('open');}
+function openPremModal(){if(!currentUser){openAuthModal();return;}document.getElementById('premNote').textContent='Your account will be upgraded to Pro within 24 hours. If it does not happen please contact us at: '+EMAIL;document.getElementById('premModal').classList.add('open');}
+function closePremModal(){document.getElementById('premModal').classList.remove('open');}
+function toggleDD(e){e.stopPropagation();document.getElementById('userDropdown').classList.toggle('open');}
+function closeDD(){document.getElementById('userDropdown').classList.remove('open');}
+
+// LANG + VOICES
+function setLang(l){
+  currentLang=l;selectedVoice=0;
+  document.getElementById('langEN').classList.toggle('active',l==='en');
+  document.getElementById('langFR').classList.toggle('active',l==='fr');
+  var ta=document.getElementById('textInput');
+  if(ta)ta.placeholder=l==='fr'?'Tapez ou collez votre texte ici...':'Type or paste your text here...';
+  renderVoices();
+}
+function renderVoices(){
+  var g=document.getElementById('voiceGrid');if(!g)return;
+  var vv=VOICES[currentLang]||VOICES.en;
+  g.innerHTML=vv.map(function(v,i){
+    var icon=v.gender==='female'?'&#128105;':v.gender==='male'?'&#128104;':'&#127897;&#65039;';
+    return '<button class="voice-btn'+(i===selectedVoice?' selected':'')+'" onclick="pickVoice('+i+')">'+icon+' '+escH(v.name)+'<span class="voice-tag">'+escH(v.tag)+'</span></button>';
+  }).join('');
+}
+function pickVoice(i){selectedVoice=i;renderVoices();}
+
+// CHAR COUNT
+function updateCharCount(){
+  var ta=document.getElementById('textInput'),cc=document.getElementById('charCount'),cf=document.getElementById('charFill');
+  var lim=isPremium?1000:250;
+  if(!ta)return;
+  var len=ta.value.length;
+  if(cc){cc.textContent=len;cc.className='num'+(len>lim?' over':'');}
+  if(cf){var pct=Math.min((len/lim)*100,100);cf.style.width=pct+'%';cf.style.background=len>lim?'#ef4444':len>lim*0.85?'#f59e0b':'var(--accent)';}
+}
+
+// WAVEFORM
+function buildWaveform(){
+  var wf=document.getElementById('waveform');if(!wf)return;
+  wf.innerHTML='';
+  for(var i=0;i<40;i++){var b=document.createElement('div');b.className='waveform-bar';b.style.height=(8+Math.random()*44)+'px';wf.appendChild(b);}
+}
+function animWave(on){
+  cancelAnimationFrame(animFrame);
+  if(!on){document.querySelectorAll('.waveform-bar').forEach(function(b){b.classList.remove('active');});return;}
+  function loop(){
+    document.querySelectorAll('.waveform-bar').forEach(function(b){b.classList.add('active');b.style.height=(8+Math.random()*44)+'px';});
+    if(isPlaying)animFrame=requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+// GET BEST VOICE
+function getBestVoice(lang,gender){
+  var sysvox=window.speechSynthesis.getVoices();
+  var lc=lang==='fr'?'fr':'en';
+  var gkw=gender==='female'?['female','zira','hazel','susan','karen','samantha','victoria','alice','amelie']:
+         gender==='male'?['male','david','mark','daniel','jorge','thomas','george']:[];
+  // Try Google voice with gender match
+  var v=sysvox.find(function(x){return /google/i.test(x.name)&&x.lang.startsWith(lc)&&gkw.some(function(k){return x.name.toLowerCase().includes(k);});});
+  if(!v)v=sysvox.find(function(x){return /google/i.test(x.name)&&x.lang.startsWith(lc);});
+  if(!v)v=sysvox.find(function(x){return /microsoft/i.test(x.name)&&x.lang.startsWith(lc);});
+  if(!v)v=sysvox.find(function(x){return x.lang.startsWith(lc);});
+  return v||null;
+}
+
+// GENERATE
+function handleGenerate(){
+  if(!currentUser){openAuthModal();return;}
+  var text=document.getElementById('textInput').value.trim();
+  if(!text){showErr('Please enter some text first.');return;}
+  var lim=isPremium?1000:250;
+  if(text.length>lim){showErr('Text is too long. Max '+lim+' characters on your plan.');return;}
+  if(!isPremium&&audiosGenerated>=1){
+    showErr('You have used your 1 free audio. Upgrade to Pro!');
+    setTimeout(openPremModal,1200);return;
+  }
+  hideErr();
+  var btn=document.getElementById('genBtn');
+  btn.disabled=true;document.getElementById('genBtnText').textContent='Generating...';
+  document.getElementById('audioResult').classList.remove('show');
+  currentText=text;
+
+  var vc=VOICES[currentLang][selectedVoice]||VOICES[currentLang][0];
+  var voice=getBestVoice(currentLang,vc.gender);
+  var u=new SpeechSynthesisUtterance(text);
+  u.rate=vc.rate;u.pitch=vc.pitch;u.volume=1;
+  u.lang=currentLang==='fr'?'fr-FR':'en-US';
+  if(voice)u.voice=voice;
+
+  u.onend=function(){
+    btn.disabled=false;document.getElementById('genBtnText').textContent='Generate Audio';
+    buildWaveform();
+    document.getElementById('audioResult').classList.add('show');
+    document.getElementById('metaChars').textContent=text.length+' chars';
+    document.getElementById('metaLang').textContent=currentLang==='fr'?'French':'English';
+    document.getElementById('metaVoice').textContent=voice?voice.name:vc.name;
+    document.getElementById('audioResult').dataset.text=text;
+    document.getElementById('playBtn').innerHTML='&#9654;';
+    document.getElementById('progFill').style.width='0%';
+    document.getElementById('timeLabel').textContent='0:00';
+    isPlaying=false;
+    // Save
+    audiosGenerated++;
+    if(firebaseReady&&currentUser)try{firebase.database().ref('chouvoice_users/'+currentUser.uid).update({audiosGenerated:audiosGenerated});}catch(e){}
+    saveHistory(text.substring(0,60)+(text.length>60?'...':''),text.length,currentLang,vc.name);
+    updateUsageUI();
+  };
+  u.onerror=function(e){
+    btn.disabled=false;document.getElementById('genBtnText').textContent='Generate Audio';
+    showErr('Generation failed: '+e.error+'. Make sure you are using Chrome.');
+  };
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
+}
+
+// PLAYER
+function togglePlay(){
+  var text=document.getElementById('audioResult').dataset.text;if(!text)return;
+  if(isPlaying){
+    window.speechSynthesis.cancel();isPlaying=false;
+    document.getElementById('playBtn').innerHTML='&#9654;';
+    clearInterval(progInterval);animWave(false);return;
+  }
+  isPlaying=true;document.getElementById('playBtn').innerHTML='&#9646;&#9646;';
+  animWave(true);
+  var vc=VOICES[currentLang][selectedVoice]||VOICES[currentLang][0];
+  var voice=getBestVoice(currentLang,vc.gender);
+  var u=new SpeechSynthesisUtterance(text);
+  u.rate=vc.rate;u.pitch=vc.pitch;u.volume=1;
+  u.lang=currentLang==='fr'?'fr-FR':'en-US';if(voice)u.voice=voice;
+  var estMs=(text.length/(vc.rate))*55;var startT=Date.now();
+  clearInterval(progInterval);
+  progInterval=setInterval(function(){
+    var pct=Math.min(((Date.now()-startT)/estMs)*100,99);
+    document.getElementById('progFill').style.width=pct+'%';
+    var s=Math.floor((Date.now()-startT)/1000);
+    document.getElementById('timeLabel').textContent=Math.floor(s/60)+':'+(s%60<10?'0':'')+s%60;
+  },150);
+  u.onend=function(){clearInterval(progInterval);isPlaying=false;document.getElementById('playBtn').innerHTML='&#9654;';document.getElementById('progFill').style.width='100%';animWave(false);};
+  u.onerror=function(){clearInterval(progInterval);isPlaying=false;document.getElementById('playBtn').innerHTML='&#9654;';animWave(false);};
+  window.speechSynthesis.cancel();window.speechSynthesis.speak(u);
+}
+function seekClick(){if(isPlaying){window.speechSynthesis.cancel();isPlaying=false;document.getElementById('playBtn').innerHTML='&#9654;';clearInterval(progInterval);animWave(false);}}
+
+// DOWNLOAD
+function downloadAudio(){
+  var text=document.getElementById('audioResult').dataset.text;if(!text){showToast('Generate an audio first');return;}
+  showToast('Preparing download...');
+  try{
+    var actx=new(window.AudioContext||window.webkitAudioContext)();
+    var dest=actx.createMediaStreamDestination();
+    var mr=new MediaRecorder(dest.stream,{mimeType:MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':'audio/webm'});
+    var chunks=[];
+    mr.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+    mr.onstop=function(){
+      var blob=new Blob(chunks,{type:'audio/webm'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');a.href=url;a.download='chouvice-'+Date.now()+'.webm';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+      showToast('Audio downloaded!');actx.close();
+    };
+    mr.start();
+    var vc=VOICES[currentLang][selectedVoice]||VOICES[currentLang][0];
+    var voice=getBestVoice(currentLang,vc.gender);
+    var u=new SpeechSynthesisUtterance(text);
+    u.rate=vc.rate;u.pitch=vc.pitch;u.volume=1;u.lang=currentLang==='fr'?'fr-FR':'en-US';if(voice)u.voice=voice;
+    u.onend=function(){setTimeout(function(){mr.stop();},400);};
+    u.onerror=function(){mr.stop();dlFallback(text);};
+    window.speechSynthesis.cancel();window.speechSynthesis.speak(u);
+  }catch(e){dlFallback(text);}
+}
+function dlFallback(text){
+  var b=new Blob([text],{type:'text/plain'});var url=URL.createObjectURL(b);
+  var a=document.createElement('a');a.href=url;a.download='chouvice-script-'+Date.now()+'.txt';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  showToast('Saved as text file — audio recording not supported in this browser');
+}
+function resetGen(){
+  document.getElementById('textInput').value='';
+  document.getElementById('audioResult').classList.remove('show');
+  window.speechSynthesis.cancel();isPlaying=false;
+  document.getElementById('playBtn').innerHTML='&#9654;';
+  clearInterval(progInterval);animWave(false);updateCharCount();
+}
+
+// HISTORY
+async function saveHistory(title,chars,lang,voice){
+  if(!firebaseReady||!currentUser)return;
+  try{await firebase.database().ref('chouvoice_history/'+currentUser.uid).push({title:title,chars:chars,lang:lang,voice:voice,createdAt:Date.now(),isPro:isPremium});}catch(e){}
+}
+function renderHistory(){
+  var c=document.getElementById('histContent');if(!c)return;
+  if(!currentUser){c.innerHTML='<div class="empty-state"><p>Sign in to see history</p></div>';return;}
+  c.innerHTML='<p style="color:var(--muted)">Loading...</p>';
+  firebase.database().ref('chouvoice_history/'+currentUser.uid).orderByChild('createdAt').limitToLast(20).once('value').then(function(snap){
+    var items=[];snap.forEach(function(ch){items.unshift(Object.assign({key:ch.key},ch.val()));});
+    if(!items.length){c.innerHTML='<div class="empty-state"><div class="icon">&#127897;&#65039;</div><p>No audios yet. Generate your first one!</p></div>';return;}
+    var h='<div class="history-grid">';
+    items.forEach(function(item){var d=new Date(item.createdAt).toLocaleDateString();h+='<div class="history-card"><div class="history-icon">&#127897;&#65039;</div><div class="history-title">'+escH(item.title)+'</div><div class="history-date">'+d+' &middot; '+item.chars+' chars &middot; '+(item.lang==='fr'?'FR':'EN')+'</div></div>';});
+    h+='</div>';c.innerHTML=h;
+  }).catch(function(e){c.innerHTML='<div class="empty-state"><p>Error: '+escH(e.message)+'</p></div>';});
+}
+function renderMyAudios(){
+  var c=document.getElementById('myAudiosContent');if(!c)return;
+  if(!currentUser){c.innerHTML='<div class="empty-state"><div class="icon">&#128274;</div><p>Please sign in to see your audios.</p></div>';return;}
+  c.innerHTML='<p style="color:var(--muted)">Loading...</p>';
+  firebase.database().ref('chouvoice_history/'+currentUser.uid).orderByChild('createdAt').limitToLast(50).once('value').then(function(snap){
+    var items=[];snap.forEach(function(ch){items.unshift(Object.assign({key:ch.key},ch.val()));});
+    if(!items.length){c.innerHTML='<div class="empty-state"><div class="icon">&#127897;&#65039;</div><p>No audios yet.</p><br><button class="btn-generate" style="margin-top:16px;font-size:0.9rem;padding:11px 24px" onclick="handleStart()">&#127897;&#65039; Create Your First Audio</button></div>';return;}
+    var h='<div class="history-grid">';
+    items.forEach(function(item){var d=new Date(item.createdAt).toLocaleDateString();h+='<div class="history-card"><div class="history-icon">&#127897;&#65039;</div><div class="history-title">'+escH(item.title)+'</div><div class="history-date">'+d+' &middot; '+item.chars+' chars &middot; '+(item.lang==='fr'?'Fran&#231;ais':'English')+'</div></div>';});
+    h+='</div>';c.innerHTML=h;
+  }).catch(function(e){c.innerHTML='<p style="color:var(--muted)">Error: '+escH(e.message)+'</p>';});
+}
+
+// FAQ
+var FAQS=[
+  {q:'Is ChouVoice free?',a:'Yes! Every account gets 1 free audio generation with no credit card required. Free plan supports up to 250 characters.'},
+  {q:'What languages are supported?',a:'English and French. Switch between them with one click in the generator dashboard.'},
+  {q:'Can I download the audio?',a:'Yes. After generating, click the Download button to save your audio file directly to your device.'},
+  {q:'Why does the voice sound robotic?',a:'ChouVoice uses your browser\'s built-in speech engine. Chrome on desktop gives the best quality with Google\'s natural voices. We recommend using Chrome for the best experience.'},
+  {q:'What is the character limit?',a:'Free plan: 250 characters per audio (about 2-3 sentences). Pro plan: 1,000 characters (about 8-10 sentences).'},
+  {q:'How do I upgrade to Pro?',a:'Click "Get Pro" anywhere on the site and complete the PayPal payment. Your account will be upgraded to Pro within 24 hours. Contact us at '+EMAIL+' if there are any issues.'},
+  {q:'Is my text stored?',a:'No. Your text is processed locally in your browser and never sent to any server. Only your usage count is saved.'},
+  {q:'What browser works best?',a:'Google Chrome on desktop gives the best voice quality. Firefox and Edge also work. Mobile browsers have limited voice support.'}
+];
+function renderFAQ(){
+  var l=document.getElementById('faqList');if(!l)return;
+  l.innerHTML=FAQS.map(function(f,i){return '<div class="faq-item" id="fq'+i+'"><button class="faq-q" onclick="tFAQ('+i+')">'+escH(f.q)+'<span class="faq-arrow">&#9660;</span></button><div class="faq-a"><p>'+escH(f.a)+'</p></div></div>';}).join('');
+}
+function tFAQ(i){document.getElementById('fq'+i).classList.toggle('open');}
+
+// UTILS
+function escH(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function showErr(m){var a=document.getElementById('genError');if(a){document.getElementById('genErrorMsg').textContent=m;a.classList.add('show');}setTimeout(function(){if(a)a.classList.remove('show');},5000);}
+function hideErr(){var a=document.getElementById('genError');if(a)a.classList.remove('show');}
+function showToast(m){var el=document.getElementById('toast');el.textContent=m;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},3000);}
+
+document.addEventListener('DOMContentLoaded',function(){
+  renderFAQ();renderVoices();
+  document.getElementById('premNote').textContent='Your account will be upgraded to Pro within 24 hours. If it does not happen please contact us at: '+EMAIL;
+  var ta=document.getElementById('textInput');if(ta)ta.addEventListener('input',updateCharCount);
+  document.addEventListener('click',function(e){if(!e.target.closest('#userPill'))closeDD();});
+  if(window.speechSynthesis)window.speechSynthesis.onvoiceschanged=renderVoices;
+});
+</script>
+</body>
+</html>
